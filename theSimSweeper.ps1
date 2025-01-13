@@ -3,6 +3,7 @@
 # Description: Identifies duplicate mod files by filename, keeps the newest version, and moves older duplicates to a specified folder.
 #
 # Changelog:
+# v1.5 - Fixed excessive new lines in output and log entries. Streamlined `Write-Host` and `Add-Content` to handle line breaks correctly.
 # v1.4 - Added default folder paths and automatic path checking to skip prompts.
 # v1.3 - Added error handling for file moves, file type filtering, logging, and a progress bar.
 # v1.2 - Automatically lists all duplicates at once before prompting to move them.
@@ -82,14 +83,14 @@ if ($allDuplicates.Count -eq 0) {
     exit
 }
 
-Write-Host "\nDuplicate files detected:" -ForegroundColor Magenta
+Write-Host "Duplicate files detected:" -ForegroundColor Magenta
 $allDuplicates | ForEach-Object {
-    Write-Host "\nDuplicate group: $($_.GroupName)" -ForegroundColor Yellow
+    Write-Host "Duplicate group: $($_.GroupName)" -ForegroundColor Yellow
     Write-Host "File to keep (newest): $($_.KeepFile)" -ForegroundColor Green
     Write-Host "Duplicate to move: $($_.DuplicateFile)" -ForegroundColor Red
 }
 
-$confirmMoveAll = Read-Host "\nDo you want to move ALL listed duplicates to the destination folder? (Y/N)"
+$confirmMoveAll = Read-Host "Do you want to move ALL listed duplicates to the destination folder? (Y/N)"
 if ($confirmMoveAll -match '^(Y|y|yes|yup)$') {
     $total = $allDuplicates.Count
     $count = 0
