@@ -3,6 +3,7 @@
 # Description: Identifies duplicate mod files by filename, keeps the newest version, and moves older duplicates to a specified folder.
 #
 # Changelog:
+# v1.2 - Automatically lists all duplicates at once before prompting to move them.
 # v1.1 - Added preview of duplicate files before prompting to move them.
 # v1.0 - Initial release: Scans Mods folder, identifies duplicates, and moves them after confirmation.
 #
@@ -29,6 +30,9 @@ $files = Get-ChildItem -Path $modsFolder -Recurse -File
 # Group files by name
 $duplicateGroups = $files | Group-Object Name | Where-Object { $_.Count -gt 1 }
 
+# Collect all duplicates
+$allDuplicates = @()
+
 foreach ($group in $duplicateGroups) {
     # Sort the group by LastWriteTime descending (newest first)
     $sortedFiles = $group.Group | Sort-Object LastWriteTime -Descending
@@ -37,29 +41,44 @@ foreach ($group in $duplicateGroups) {
     $fileToKeep = $sortedFiles[0]
     $duplicates = $sortedFiles[1..($sortedFiles.Count - 1)]
 
-    Write-Host "\nDuplicate group detected for file: $($group.Name)" -ForegroundColor Magenta
-    Write-Host "File to keep (newest): $($fileToKeep.FullName)" -ForegroundColor Green
-    Write-Host "Files marked as duplicates:" -ForegroundColor Yellow
     foreach ($duplicate in $duplicates) {
-        Write-Host " - $($duplicate.FullName)"
-    }
-
-    $confirmMove = Read-Host "Do you want to move these duplicates to the destination folder? (Y/N)"
-    if ($confirmMove -eq 'Y' -or $confirmMove -eq 'y') {
-        foreach ($duplicate in $duplicates) {
-            $destinationPath = Join-Path -Path $destinationFolder -ChildPath $duplicate.Name
-            
-            # Handle if the file already exists in the destination
-            if (Test-Path $destinationPath) {
-                $destinationPath = Join-Path -Path $destinationFolder -ChildPath ("$(Get-Date -Format yyyyMMdd_HHmmss)_" + $duplicate.Name)
-            }
-            
-            Move-Item -Path $duplicate.FullName -Destination $destinationPath
-            Write-Host "Moved to: $destinationPath" -ForegroundColor Green
+        $allDuplicates += [PSCustomObject]@{
+            GroupName = $group.Name
+            KeepFile = $fileToKeep.FullName
+            DuplicateFile = $duplicate.FullName
         }
-    } else {
-        Write-Host "Skipped moving duplicates for: $($group.Name)" -ForegroundColor Cyan
     }
+}
+
+# Display all duplicates
+if ($allDuplicates.Count -eq 0) {
+    Write-Host "No duplicate files found." -ForegroundColor Green
+    exit
+}
+
+Write-Host "\nDuplicate files detected:" -ForegroundColor Magenta
+$allDuplicates | ForEach-Object {
+    Write-Host "\nDuplicate group: $($_.GroupName)" -ForegroundColor Yellow
+    Write-Host "File to keep (newest): $($_.KeepFile)" -ForegroundColor Green
+    Write-Host "Duplicate to move: $($_.DuplicateFile)" -ForegroundColor Red
+}
+
+# Prompt once to move all duplicates
+$confirmMoveAll = Read-Host "\nDo you want to move ALL listed duplicates to the destination folder? (Y/N)"
+if ($confirmMoveAll -eq 'Y' -or $confirmMoveAll -eq 'y' -or $confirmMoveAll -eq 'yes' -or $confirmMoveAll -eq 'yup') {
+    foreach ($item in $allDuplicates) {
+        $destinationPath = Join-Path -Path $destinationFolder -ChildPath ([IO.Path]::GetFileName($item.DuplicateFile))
+        
+        # Handle if the file already exists in the destination
+        if (Test-Path $destinationPath) {
+            $destinationPath = Join-Path -Path $destinationFolder -ChildPath ("$(Get-Date -Format yyyyMMdd_HHmmss)_" + [IO.Path]::GetFileName($item.DuplicateFile))
+        }
+        
+        Move-Item -Path $item.DuplicateFile -Destination $destinationPath
+        Write-Host "Moved: $($item.DuplicateFile) → $destinationPath" -ForegroundColor Green
+    }
+} else {
+    Write-Host "No duplicates were moved." -ForegroundColor Cyan
 }
 
 Write-Host "Duplicate processing complete!" -ForegroundColor Green
