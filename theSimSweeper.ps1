@@ -3,6 +3,7 @@
 # Description: Identifies duplicate mod files by filename, keeps the newest version, and moves older duplicates to a specified folder.
 #
 # Changelog:
+# v1.6 - Modified output format for duplicate files as per user request. Added cleaner display with newer/older file details and last modified dates.
 # v1.5 - Fixed excessive new lines in output and log entries. Streamlined `Write-Host` and `Add-Content` to handle line breaks correctly.
 # v1.4 - Added default folder paths and automatic path checking to skip prompts.
 # v1.3 - Added error handling for file moves, file type filtering, logging, and a progress bar.
@@ -74,6 +75,8 @@ foreach ($group in $duplicateGroups) {
             GroupName = $group.Name
             KeepFile = $fileToKeep.FullName
             DuplicateFile = $duplicate.FullName
+            KeepFileModified = $fileToKeep.LastWriteTime
+            DuplicateFileModified = $duplicate.LastWriteTime
         }
     }
 }
@@ -83,11 +86,14 @@ if ($allDuplicates.Count -eq 0) {
     exit
 }
 
-Write-Host "Duplicate files detected:" -ForegroundColor Magenta
+Write-Host "***DUPLICATES FOUND***" -ForegroundColor Cyan
+Write-Host "---" -ForegroundColor Cyan
+
 $allDuplicates | ForEach-Object {
-    Write-Host "Duplicate group: $($_.GroupName)" -ForegroundColor Yellow
-    Write-Host "File to keep (newest): $($_.KeepFile)" -ForegroundColor Green
-    Write-Host "Duplicate to move: $($_.DuplicateFile)" -ForegroundColor Red
+    Write-Host "**$($_.GroupName)" -ForegroundColor Yellow
+    Write-Host "NEWER: Last modified: $($_.KeepFileModified) $($_.KeepFile)" -ForegroundColor Green
+    Write-Host "OLDER: Last modified: $($_.DuplicateFileModified) $($_.DuplicateFile)" -ForegroundColor Red
+    Write-Host "---" -ForegroundColor Cyan
 }
 
 $confirmMoveAll = Read-Host "Do you want to move ALL listed duplicates to the destination folder? (Y/N)"
